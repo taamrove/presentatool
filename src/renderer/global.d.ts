@@ -1,0 +1,37 @@
+import type {
+  AppSettings,
+  ClickerCommand,
+  PairingToken,
+  Peer,
+  Presentation,
+  SlideInfo,
+} from '../shared/types';
+
+interface PresentoolApi {
+  listPresentations(): Promise<Presentation[]>;
+  importDialog(): Promise<Presentation[]>;
+  presentationNotes(id: string): Promise<{ title?: string; notes?: string }[]>;
+
+  open(id: string): Promise<boolean>;
+  close(): Promise<boolean>;
+  click(cmd: ClickerCommand): Promise<boolean>;
+  current(): Promise<SlideInfo | null>;
+
+  peers(): Promise<Peer[]>;
+  settings(): Promise<AppSettings>;
+  saveSettings(patch: Partial<AppSettings>): Promise<AppSettings>;
+
+  pairRemote(): Promise<PairingToken>;
+
+  onSlide(cb: (info: SlideInfo) => void): () => void;
+  onQuickSwitch(cb: () => void): () => void;
+  onPeersUpdate(cb: () => void): () => void;
+}
+
+declare global {
+  interface Window {
+    presentool: PresentoolApi;
+  }
+}
+
+export {};
