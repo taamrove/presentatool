@@ -98,6 +98,25 @@ export function SettingsPanel({ settings, onChange }: { settings: AppSettings; o
           Auto-sync new presentations from peers
         </label>
       </section>
+      <section>
+        <h3>Bitfocus Companion / API token</h3>
+        <p className="hint">
+          Paste this token into the Presentool module in Bitfocus Companion to drive slides from a
+          Stream Deck or any Companion-supported controller. Treat it like a password.
+        </p>
+        <label>
+          API token
+          <input
+            value={draft.network.apiToken ?? ''}
+            placeholder="(none generated)"
+            readOnly
+          />
+        </label>
+        <button onClick={async () => {
+          const token = await window.presentool.generateApiToken();
+          setDraft({ ...draft, network: { ...draft.network, apiToken: token } });
+        }}>Generate new token</button>
+      </section>
       <div className="actions">
         <button className="primary" disabled={saving} onClick={save}>
           {saving ? 'Saving…' : 'Save changes'}

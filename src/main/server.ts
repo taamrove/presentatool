@@ -137,11 +137,13 @@ export class Server extends EventEmitter {
     try { msg = JSON.parse(raw.toString()); } catch { return; }
     switch (msg.kind) {
       case 'hello': {
-        if (msg.role === 'companion') {
-          const ok = msg.token && this.tokens.has(msg.token) && (this.tokens.get(msg.token)! > Date.now());
-          if (!ok) { trySend(ws, { kind: 'error', message: 'invalid or expired pairing token' }); ws.close(); return; }
-          this.tokens.delete(msg.token!);
-          setRole?.('companion');
+        if (msg.role === 'companion' || msg.role === 'controller') {
+          const apiToken = getSettings().network.apiToken;
+          const isApi = msg.role === 'controller' && !!apiToken && msg.token === apiToken;
+          const isPair = !!msg.token && this.tokens.has(msg.token!) && (this.tokens.get(msg.token!)! > Date.now());
+          if (!isApi && !isPair) { trySend(ws, { kind: 'error', message: 'invalid or expired token' }); ws.close(); return; }
+          if (isPair) this.tokens.delete(msg.token!);
+          setRole?.(msg.role === 'controller' ? 'companion' : msg.role);
           this.remotes.add(ws);
           const welcome: WireMessage = {
             kind: 'welcome',

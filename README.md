@@ -18,15 +18,16 @@ sync everything between the machines on your network.
 | Discovery between connected computers | ✅ | mDNS / Bonjour with peer txt records. |
 | Presenter notes + current/next slide | ✅ | Native scripting on Windows (PowerPoint COM) and macOS (Keynote/PowerPoint AppleScript). PPTX notes also parsed from the file as a fallback. |
 | Optional cloud relay (remote across networks) | ✅ | Point at any WebSocket relay URL in Settings → Network. |
+| Bitfocus Companion module | ✅ | Drive Presentool from a Stream Deck. See [`modules/companion-bitfocus`](modules/companion-bitfocus/). |
 
 ## Modules
 
 There are four top-level modules:
 
 1. **Desktop app** (`src/main` + `src/renderer`) — the Electron app the speaker runs.
-2. **Companion web app** (`src/companion`) — the phone-side remote, served by the desktop over HTTP/WS once paired.
-3. **Discovery & sync** (`src/main/discovery.ts`, `src/main/sync.ts`, `src/main/server.ts`) — mDNS, the peer WebSocket protocol, and the chunked file transfer used to copy versions across the LAN.
-4. **Versioning + library** (`src/main/library.ts`, `src/main/notes.ts`) — file watcher, snapshot store, and pptx outline extractor.
+2. **Phone web remote** (`src/companion`) — a touch UI served by the desktop, paired via QR.
+3. **Bitfocus Companion module** (`modules/companion-bitfocus`) — Node module that lets [Bitfocus Companion](https://bitfocus.io/companion) drive Presentool from a Stream Deck or other control surface.
+4. **Discovery + sync + versioning** (`src/main/discovery.ts`, `src/main/sync.ts`, `src/main/library.ts`) — mDNS peer discovery, chunked WebSocket sync of presentation versions, and file-watcher-driven snapshotting.
 
 Each module talks to the others through the shared types in `src/shared/types.ts`.
 

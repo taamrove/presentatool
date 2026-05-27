@@ -64,7 +64,7 @@ export interface PairingToken {
 // Messages exchanged over the WebSocket between the desktop and any
 // remote (companion app, peer desktop, or cloud relay).
 export type WireMessage =
-  | { kind: 'hello'; role: 'companion' | 'peer'; token?: string; peer?: Omit<Peer, 'lastSeen'> }
+  | { kind: 'hello'; role: 'companion' | 'peer' | 'controller'; token?: string; peer?: Omit<Peer, 'lastSeen'> }
   | { kind: 'welcome'; peer: Omit<Peer, 'lastSeen'>; current?: SlideInfo; presentation?: { id: string; title: string } }
   | { kind: 'click'; command: ClickerCommand }
   | { kind: 'slide'; info: SlideInfo; presentationId?: string }
@@ -109,6 +109,7 @@ export interface AppSettings {
     enableRelay: boolean;
     relayUrl?: string;          // wss://... when user wires up a domain
     relayToken?: string;
+    apiToken?: string;          // long-lived token for Bitfocus Companion etc.
   };
   autoSync: boolean;
 }

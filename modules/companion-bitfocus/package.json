@@ -1,0 +1,21 @@
+{
+  "name": "presentool",
+  "version": "0.1.0",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "package": "companion-module-build"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@companion-module/base": "~1.10.0",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@companion-module/tools": "^1.5.0",
+    "@types/node": "^20.11.0",
+    "@types/ws": "^8.5.10",
+    "typescript": "^5.3.3"
+  }
+}

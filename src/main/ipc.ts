@@ -1,5 +1,5 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron';
-import * as fs from 'fs';
+import * as crypto from 'crypto';
 import type { ClickerCommand, AppSettings } from '@shared/types';
 import { Library } from './library';
 import { Server } from './server';
@@ -60,4 +60,10 @@ export function registerIpc(ctx: IpcContext): void {
   ipcMain.handle('settings:set', (_e, patch: Partial<AppSettings>) => updateSettings(patch));
 
   ipcMain.handle('remote:pair', async () => ctx.server.createPairingToken());
+
+  ipcMain.handle('remote:generate-api-token', async () => {
+    const apiToken = crypto.randomBytes(24).toString('base64url');
+    const next = updateSettings({ network: { ...getSettings().network, apiToken } });
+    return next.network.apiToken!;
+  });
 }

@@ -22,6 +22,7 @@ interface PresentoolApi {
   saveSettings(patch: Partial<AppSettings>): Promise<AppSettings>;
 
   pairRemote(): Promise<PairingToken>;
+  generateApiToken(): Promise<string>;
 
   onSlide(cb: (info: SlideInfo) => void): () => void;
   onQuickSwitch(cb: () => void): () => void;

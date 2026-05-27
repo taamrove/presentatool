@@ -16,6 +16,7 @@ const api = {
   saveSettings: (patch: Partial<AppSettings>): Promise<AppSettings> => ipcRenderer.invoke('settings:set', patch),
 
   pairRemote: (): Promise<PairingToken> => ipcRenderer.invoke('remote:pair'),
+  generateApiToken: (): Promise<string> => ipcRenderer.invoke('remote:generate-api-token'),
 
   onSlide: (cb: (info: SlideInfo) => void) => {
     const fn = (_: unknown, info: SlideInfo) => cb(info);
