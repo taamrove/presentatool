@@ -16,6 +16,27 @@ const EXT_TO_KIND: Record<string, PresentationKind> = {
 };
 
 /**
+ * Filenames Office / LibreOffice / Keynote spew while a deck is open. Treating
+ * them as presentations was why the Library kept growing fake ~$1 / ~$2 cards.
+ *
+ *   ~$Foo.pptx     PowerPoint / Word / Excel lock file
+ *   .~lock.X.pptx#  LibreOffice lock file
+ *   ._Foo.pptx     macOS resource fork dotfile on non-HFS volumes
+ */
+function isJunkFilename(name: string): boolean {
+  return name.startsWith('~$') || name.startsWith('.~lock.') || name.startsWith('._');
+}
+
+/** True for filenames we want to import as presentations. */
+function isPresentationFile(filename: string): boolean {
+  const base = path.basename(filename);
+  if (isJunkFilename(base)) return false;
+  if (base.startsWith('.')) return false; // any other dotfile
+  const ext = path.extname(base).toLowerCase();
+  return ext in EXT_TO_KIND;
+}
+
+/**
  * The Library is the source of truth for what presentations exist on this
  * device. It watches the user's library paths, copies each new or modified
  * file into our managed storage as a new immutable version, and exposes
@@ -28,8 +49,31 @@ export class Library extends EventEmitter {
 
   async start(): Promise<void> {
     this.load();
+    this.cleanupJunkPresentations();
     await this.rescan();
     this.watch();
+  }
+
+  /**
+   * Remove tracked "presentations" that were actually Office lock files
+   * ingested before the filter landed. Runs once per launch — harmless if
+   * the library is already clean.
+   */
+  private cleanupJunkPresentations(): void {
+    let removed = 0;
+    for (const [id, p] of this.presentations) {
+      const base = p.watchPath ? path.basename(p.watchPath) : `${p.title}${extForKind(p.kind)}`;
+      if (!isJunkFilename(base)) continue;
+      this.presentations.delete(id);
+      if (p.watchPath) this.byWatchPath.delete(p.watchPath);
+      // We deliberately leave the managed library dir on disk — the next sweep
+      // can pick it up if the user wants, and a 165-byte stub is harmless.
+      removed++;
+    }
+    if (removed > 0) {
+      console.log(`[library] removed ${removed} stale lock-file entries`);
+      this.persist();
+    }
   }
 
   stop(): void {
@@ -187,8 +231,7 @@ export class Library extends EventEmitter {
         if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
         await this.scanDir(full);
       } else if (entry.isFile()) {
-        const ext = path.extname(entry.name).toLowerCase();
-        if (!(ext in EXT_TO_KIND)) continue;
+        if (!isPresentationFile(entry.name)) continue;
         if (this.byWatchPath.has(full)) continue;
         try {
           await this.adoptFile(full);
@@ -238,7 +281,16 @@ export class Library extends EventEmitter {
     const settings = getSettings();
     for (const root of settings.libraryPaths) {
       const watcher = chokidar.watch(root, {
-        ignored: /(^|[\\/])\.|node_modules/,
+        // Skip dotfiles, node_modules, Office / LibreOffice / macOS lock files.
+        // A function lets us run isJunkFilename on every basename rather than
+        // trying to express both the dotfile and ~$ rules in one regex.
+        ignored: (testPath: string) => {
+          const base = path.basename(testPath);
+          if (base === 'node_modules') return true;
+          if (base.startsWith('.') && base.length > 1) return true;
+          if (isJunkFilename(base)) return true;
+          return false;
+        },
         ignoreInitial: true,
         awaitWriteFinish: { stabilityThreshold: 1500, pollInterval: 200 },
         depth: 6,
@@ -250,8 +302,7 @@ export class Library extends EventEmitter {
   }
 
   private async onFsAdd(filePath: string): Promise<void> {
-    const ext = path.extname(filePath).toLowerCase();
-    if (!(ext in EXT_TO_KIND)) return;
+    if (!isPresentationFile(filePath)) return;
     if (this.byWatchPath.has(filePath)) return;
     try { await this.adoptFile(filePath); } catch (err) { console.warn(err); }
   }

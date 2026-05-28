@@ -8,6 +8,20 @@ interface Props {
   onOpen: (p: Presentation) => void;
 }
 
+/**
+ * Returned by `groupByFolder` — one group per source folder, in the order
+ * we want them rendered (most-recently-updated folder first).
+ */
+interface FolderGroup {
+  /** Absolute parent directory, or '' for "no source folder" (synced, etc.) */
+  folder: string;
+  /** Display name — basename of the folder, or "Synced from peers". */
+  label: string;
+  presentations: Presentation[];
+  /** ISO timestamp of the most recent updatedAt in the group, for ordering. */
+  mostRecent: string;
+}
+
 export function Library({ presentations, selectedId, onSelect, onOpen }: Props): JSX.Element {
   if (presentations.length === 0) {
     return (
@@ -21,35 +35,96 @@ export function Library({ presentations, selectedId, onSelect, onOpen }: Props):
       </div>
     );
   }
+
+  const groups = groupByFolder(presentations);
+
   return (
     <div className="library">
       <header className="library-header">
         <h2>Library</h2>
         <span className="hint">Double-click to start the slideshow</span>
       </header>
-      <ul className="cards">
-        {presentations.map((p) => (
-          <li
-            key={p.id}
-            className={`card${p.id === selectedId ? ' selected' : ''}`}
-            onClick={() => onSelect(p.id)}
-            onDoubleClick={() => onOpen(p)}
-          >
-            <div className="card-kind">{p.kind.toUpperCase()}</div>
-            <div className="card-title">{p.title}</div>
-            <div className="card-meta">
-              <span>{p.versions.length} version{p.versions.length === 1 ? '' : 's'}</span>
-              <span>·</span>
-              <span title={p.updatedAt}>{relative(p.updatedAt)}</span>
-            </div>
-            <div className="card-actions">
-              <button onClick={(e) => { e.stopPropagation(); onOpen(p); }}>Open</button>
-            </div>
-          </li>
-        ))}
-      </ul>
+      {groups.map((g) => (
+        <section key={g.folder || '__nofolder__'} className="library-group">
+          <header className="library-group-header">
+            <span className="library-group-name">{g.label}</span>
+            <span className="hint" title={g.folder}>
+              {g.presentations.length} item{g.presentations.length === 1 ? '' : 's'}
+              {g.folder && ` · ${g.folder}`}
+            </span>
+          </header>
+          <ul className="cards">
+            {g.presentations.map((p) => (
+              <li
+                key={p.id}
+                className={`card${p.id === selectedId ? ' selected' : ''}`}
+                onClick={() => onSelect(p.id)}
+                onDoubleClick={() => onOpen(p)}
+              >
+                <div className="card-kind">{p.kind.toUpperCase()}</div>
+                <div className="card-title">{p.title}</div>
+                <div className="card-meta">
+                  <span>{p.versions.length} version{p.versions.length === 1 ? '' : 's'}</span>
+                  <span>·</span>
+                  <span title={p.updatedAt}>{relative(p.updatedAt)}</span>
+                </div>
+                <div className="card-actions">
+                  <button onClick={(e) => { e.stopPropagation(); onOpen(p); }}>Open</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
     </div>
   );
+}
+
+/**
+ * Bucket presentations by the folder they were imported from. A presentation
+ * with no `watchPath` (came in via sync from a peer, or imported via the file
+ * picker without a watched root) goes into a "Synced / imported" group.
+ *
+ * Within each group, presentations stay sorted by updatedAt desc — matches
+ * the original ungrouped behaviour. Groups themselves are ordered by the
+ * most-recent updatedAt of anything inside, so wherever you're actively
+ * editing floats to the top.
+ */
+function groupByFolder(presentations: Presentation[]): FolderGroup[] {
+  const map = new Map<string, FolderGroup>();
+  for (const p of presentations) {
+    const folder = p.watchPath ? parentDir(p.watchPath) : '';
+    let group = map.get(folder);
+    if (!group) {
+      group = {
+        folder,
+        label: folder ? basename(folder) : 'Synced / imported',
+        presentations: [],
+        mostRecent: p.updatedAt,
+      };
+      map.set(folder, group);
+    }
+    group.presentations.push(p);
+    if (p.updatedAt > group.mostRecent) group.mostRecent = p.updatedAt;
+  }
+  for (const g of map.values()) {
+    g.presentations.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+  return [...map.values()].sort((a, b) => b.mostRecent.localeCompare(a.mostRecent));
+}
+
+/** Cross-platform path parent. We can't use Node's `path` from the renderer. */
+function parentDir(filePath: string): string {
+  const norm = filePath.replace(/\\/g, '/');
+  const i = norm.lastIndexOf('/');
+  if (i <= 0) return '';
+  return filePath.slice(0, i);
+}
+
+function basename(folderPath: string): string {
+  const norm = folderPath.replace(/\\/g, '/');
+  const i = norm.lastIndexOf('/');
+  return i < 0 ? folderPath : folderPath.slice(i + 1);
 }
 
 function relative(iso: string): string {

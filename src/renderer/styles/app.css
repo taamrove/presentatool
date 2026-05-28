@@ -85,9 +85,19 @@ button.primary:hover { background: var(--accent); }
 .hint { color: var(--muted); font-size: 13px; }
 
 .cards {
-  list-style: none; padding: 0; margin: 16px 0 0;
+  list-style: none; padding: 0; margin: 12px 0 0;
   display: grid; gap: 12px;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+.library-group { margin: 16px 0 24px; }
+.library-group-header {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.library-group-name {
+  font-weight: 600; font-size: 14px;
+  color: var(--text);
 }
 .card {
   background: var(--bg-2);
