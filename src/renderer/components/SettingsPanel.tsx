@@ -1,10 +1,32 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { AppSettings } from '../../shared/types';
 
 export function SettingsPanel({ settings, onChange }: { settings: AppSettings; onChange: (s: AppSettings) => void }): JSX.Element {
   const [draft, setDraft] = useState<AppSettings>(settings);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [updaterStatus, setUpdaterStatus] = useState<string>('idle');
+  const [updaterChecking, setUpdaterChecking] = useState(false);
+
+  // Subscribe to background updater pings so the UI reflects state changes
+  // that didn't originate from the Check button (downloads finishing, etc.).
+  useEffect(() => {
+    return window.presentatool.onUpdaterStatus((s) => {
+      setUpdaterStatus(s.version ? `${s.state} → ${s.version}` : s.state);
+    });
+  }, []);
+
+  async function checkForUpdates(): Promise<void> {
+    setUpdaterChecking(true);
+    try {
+      const res = await window.presentatool.checkForUpdates();
+      if (res.state === 'error') setUpdaterStatus(`error: ${res.error}`);
+      else if (res.version) setUpdaterStatus(`${res.state} → ${res.version}`);
+      else setUpdaterStatus(res.state);
+    } finally {
+      setUpdaterChecking(false);
+    }
+  }
 
   async function save(): Promise<void> {
     setSaving(true);
@@ -163,6 +185,18 @@ export function SettingsPanel({ settings, onChange }: { settings: AppSettings; o
           const token = await window.presentatool.generateApiToken();
           setDraft({ ...draft, network: { ...draft.network, apiToken: token } });
         }}>Generate new token</button>
+      </section>
+      <section>
+        <h3>Updates</h3>
+        <p className="hint">
+          Auto-checks every 5 minutes while open. On Windows, updates download
+          silently and prompt to restart. On macOS (unsigned builds), an
+          "open download page" dialog appears — install requires a signed
+          DMG. Status: <code>{updaterStatus}</code>.
+        </p>
+        <button disabled={updaterChecking} onClick={checkForUpdates}>
+          {updaterChecking ? 'Checking…' : 'Check for updates now'}
+        </button>
       </section>
       <div className="actions">
         <button className="primary" disabled={saving} onClick={save}>

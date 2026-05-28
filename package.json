@@ -1,6 +1,6 @@
 {
   "name": "presentatool",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Cross-platform presentation manager with remote clicker, LAN sync, and versioning",
   "main": "dist/main/main/index.js",
   "author": "taamrove",

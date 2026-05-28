@@ -24,6 +24,8 @@ interface PresentatoolApi {
   pairRemote(): Promise<PairingToken>;
   generateApiToken(): Promise<string>;
   installFirewallRule(): Promise<{ ok: boolean; reason?: string; status?: string }>;
+  checkForUpdates(): Promise<{ state: string; version?: string; error?: string }>;
+  onUpdaterStatus(cb: (s: { state: string; version?: string }) => void): () => void;
 
   onSlide(cb: (info: SlideInfo) => void): () => void;
   onQuickSwitch(cb: () => void): () => void;

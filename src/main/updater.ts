@@ -28,9 +28,20 @@ const RELEASES_OWNER = 'taamrove';
 const RELEASES_REPO = 'presentatool';
 
 let started = false;
+let activeWin: BrowserWindow | null = null;
+
+/**
+ * Default poll interval. Short enough that during active development you
+ * don't have to manually restart on every box to pick up a new release —
+ * 5 minutes is the practical sweet spot. Long enough not to pummel GitHub
+ * (their unauthenticated API limit is 60 req/h per IP; 12 polls/h is fine
+ * even with all three of your boxes hitting it simultaneously).
+ */
+const POLL_INTERVAL_MS = 5 * 60 * 1000;
 
 /** Wire the updater into the main process. Call once after the window exists. */
 export function startUpdater(win: BrowserWindow | null): void {
+  activeWin = win;
   if (started) return;
   started = true;
 
@@ -50,8 +61,27 @@ export function startUpdater(win: BrowserWindow | null): void {
     setupAutoUpdater(win);
   } else {
     void checkManually(win);
-    // Re-check every 6h while the app stays open.
-    setInterval(() => { void checkManually(win); }, 6 * 60 * 60 * 1000);
+    setInterval(() => { void checkManually(win); }, POLL_INTERVAL_MS);
+  }
+}
+
+/**
+ * Fired from the renderer ("Check for updates" button). Runs the platform
+ * appropriate path and returns a one-liner status the UI can show.
+ */
+export async function checkNow(): Promise<{ state: string; version?: string; error?: string }> {
+  if (!app.isPackaged) return { state: 'dev', error: 'auto-update is disabled in dev builds' };
+  const isMacManual = process.platform === 'darwin' && !process.env.PRESENTATOOL_MAC_AUTOUPDATE;
+  try {
+    if (isMacManual) {
+      await checkManually(activeWin);
+      return { state: 'checked' };
+    }
+    const r = await autoUpdater.checkForUpdates();
+    if (r?.updateInfo) return { state: 'available', version: r.updateInfo.version };
+    return { state: 'up-to-date' };
+  } catch (err) {
+    return { state: 'error', error: String((err as Error)?.message ?? err) };
   }
 }
 
@@ -110,7 +140,7 @@ function setupAutoUpdater(win: BrowserWindow | null): void {
   // Periodic re-check.
   setInterval(() => {
     autoUpdater.checkForUpdates().catch(() => undefined);
-  }, 6 * 60 * 60 * 1000);
+  }, POLL_INTERVAL_MS);
 }
 
 // ---------------------------------------------------------------------------

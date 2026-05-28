@@ -19,6 +19,13 @@ const api = {
   generateApiToken: (): Promise<string> => ipcRenderer.invoke('remote:generate-api-token'),
   installFirewallRule: (): Promise<{ ok: boolean; reason?: string; status?: string }> =>
     ipcRenderer.invoke('network:install-firewall-rule'),
+  checkForUpdates: (): Promise<{ state: string; version?: string; error?: string }> =>
+    ipcRenderer.invoke('updater:check'),
+  onUpdaterStatus: (cb: (status: { state: string; version?: string }) => void) => {
+    const fn = (_: unknown, s: { state: string; version?: string }) => cb(s);
+    ipcRenderer.on('updater:status', fn);
+    return () => ipcRenderer.removeListener('updater:status', fn);
+  },
 
   onSlide: (cb: (info: SlideInfo) => void) => {
     const fn = (_: unknown, info: SlideInfo) => cb(info);

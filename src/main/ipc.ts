@@ -8,6 +8,7 @@ import { Sync } from './sync';
 import { adapter } from './adapters';
 import { readPptxOutline } from './notes';
 import { getSettings, updateSettings } from './settings';
+import { checkNow as checkForUpdatesNow } from './updater';
 
 export interface IpcContext {
   library: Library;
@@ -72,6 +73,8 @@ export function registerIpc(ctx: IpcContext): void {
   });
 
   ipcMain.handle('remote:pair', async () => ctx.server.createPairingToken());
+
+  ipcMain.handle('updater:check', async () => checkForUpdatesNow());
 
   ipcMain.handle('network:install-firewall-rule', async () => {
     if (process.platform !== 'win32') return { ok: false, reason: 'not-windows' };
