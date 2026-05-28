@@ -4,7 +4,8 @@ import * as crypto from 'crypto';
 import chokidar, { FSWatcher } from 'chokidar';
 import { EventEmitter } from 'events';
 import { metadataFile, versionsRoot, libraryRoot } from './paths';
-import { getSettings } from './settings';
+import { getSettings, getPeerId } from './settings';
+import { MANIFEST_FILENAME, upsertPresentationRef } from './folder-manifest';
 import type { Presentation, PresentationKind, PresentationVersion, PresentationSummary, SyncOffer } from '@shared/types';
 
 const EXT_TO_KIND: Record<string, PresentationKind> = {
@@ -270,11 +271,48 @@ export class Library extends EventEmitter {
         return;
       }
     }
-    const data = fs.readFileSync(filePath);
     const ext = path.extname(filePath).toLowerCase();
     const kind = EXT_TO_KIND[ext] ?? 'unknown';
     const title = path.basename(filePath, ext);
-    const id = crypto.randomUUID();
+
+    // If this file lives under a configured library folder, consult that
+    // folder's `.presentatool.json` manifest. If a peer has already minted
+    // an ID for this exact file (because they're sharing a Dropbox / iCloud
+    // folder with us), reuse it so the sync layer recognises the two as
+    // the same presentation. Otherwise write a fresh ID into the manifest
+    // so the next peer to mount the folder sees ours.
+    const owningFolder = findOwningLibraryFolder(filePath);
+    let id: string;
+    if (owningFolder) {
+      // Don't try to track our own manifest file as a presentation —
+      // shouldn't reach here (chokidar ignores it) but belt and braces.
+      if (path.basename(filePath) === MANIFEST_FILENAME) return;
+      const candidateId = crypto.randomUUID();
+      const ref = upsertPresentationRef(owningFolder, filePath, {
+        presentationId: candidateId,
+        title,
+        kind,
+        peerId: getPeerId(),
+      });
+      id = ref.presentationId;
+      // If we already have a Presentation row with this id (e.g. synced in
+      // from a peer earlier and we're now adopting the local file copy),
+      // attach the watchPath to the existing row instead of creating a
+      // duplicate.
+      const existing = this.presentations.get(id);
+      if (existing) {
+        existing.watchPath = filePath;
+        this.byWatchPath.set(filePath, id);
+        this.persist();
+        const data = fs.readFileSync(filePath);
+        await this.addVersionBuffer(existing, data, 'local');
+        return;
+      }
+    } else {
+      id = crypto.randomUUID();
+    }
+
+    const data = fs.readFileSync(filePath);
     const dir = path.join(libraryRoot(), id);
     fs.mkdirSync(dir, { recursive: true });
     const currentPath = path.join(dir, `current${ext}`);
@@ -365,6 +403,28 @@ export class Library extends EventEmitter {
     const all = Array.from(this.presentations.values());
     fs.writeFileSync(metadataFile(), JSON.stringify(all, null, 2));
   }
+}
+
+/**
+ * Find the configured library folder that contains `filePath`. Longest match
+ * wins, so a deck inside `~/Dropbox/Clients/Acme/archive/` correctly belongs
+ * to `~/Dropbox/Clients/Acme/archive` if both that and `~/Dropbox/Clients`
+ * are watched. Returns null if no configured folder is an ancestor.
+ */
+function findOwningLibraryFolder(filePath: string): string | null {
+  const folders = getSettings().libraryPaths;
+  const normTarget = path.resolve(filePath).replace(/\\/g, '/').toLowerCase();
+  let best: string | null = null;
+  let bestLen = -1;
+  for (const f of folders) {
+    const normFolder = path.resolve(f).replace(/\\/g, '/').toLowerCase();
+    if (normTarget === normFolder) continue; // we shouldn't match a folder itself
+    if (normTarget.startsWith(normFolder + '/') && normFolder.length > bestLen) {
+      best = f;
+      bestLen = normFolder.length;
+    }
+  }
+  return best;
 }
 
 function extForKind(kind: PresentationKind): string {
