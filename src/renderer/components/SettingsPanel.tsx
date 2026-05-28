@@ -97,13 +97,38 @@ export function SettingsPanel({ settings, onChange }: { settings: AppSettings; o
         </label>
       </section>
       <section>
-        <h3>Library paths</h3>
-        <p className="hint">Folders scanned for presentations. Add one per line.</p>
-        <textarea
-          rows={5}
-          value={draft.libraryPaths.join('\n')}
-          onChange={(e) => setDraft({ ...draft, libraryPaths: e.target.value.split('\n').map((s) => s.trim()).filter(Boolean) })}
-        />
+        <h3>Library folders</h3>
+        <p className="hint">
+          Each folder is watched live — drop in a <code>.pptx / .key / .pdf</code> and it
+          shows up in the Library. Works the same for local folders, Dropbox, OneDrive,
+          and iCloud Drive — pick the folder where the cloud client syncs files to
+          your machine.
+        </p>
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+          {draft.libraryPaths.length === 0 && (
+            <li className="hint">No folders yet. Click below to add one.</li>
+          )}
+          {draft.libraryPaths.map((p) => (
+            <li key={p} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 0' }}>
+              <code style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p}>{p}</code>
+              <button
+                onClick={async () => {
+                  const next = await window.presentatool.removeLibraryFolder(p);
+                  setDraft(next);
+                  onChange(next);
+                }}
+              >Remove</button>
+            </li>
+          ))}
+        </ul>
+        <button
+          style={{ marginTop: 8 }}
+          onClick={async () => {
+            const next = await window.presentatool.addLibraryFolderDialog();
+            setDraft(next);
+            onChange(next);
+          }}
+        >+ Add folder…</button>
       </section>
       <section>
         <h3>Hotkeys</h3>

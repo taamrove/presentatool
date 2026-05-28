@@ -51,6 +51,12 @@ export function App(): JSX.Element {
     await refreshLibrary();
   }
 
+  async function addFolder(): Promise<void> {
+    const next = await window.presentatool.addLibraryFolderDialog();
+    setSettings(next);
+    await refreshLibrary();
+  }
+
   async function openPresentation(p: Presentation): Promise<void> {
     setSelectedId(p.id);
     await window.presentatool.open(p.id);
@@ -87,9 +93,11 @@ export function App(): JSX.Element {
         {tab === 'library' && (
           <Library
             presentations={presentations}
+            watchedFolders={settings?.libraryPaths ?? []}
             selectedId={selectedId}
             onSelect={setSelectedId}
             onOpen={openPresentation}
+            onAddFolder={addFolder}
           />
         )}
         {tab === 'clicker' && (

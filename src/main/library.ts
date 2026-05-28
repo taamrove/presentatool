@@ -55,6 +55,19 @@ export class Library extends EventEmitter {
   }
 
   /**
+   * Stop watchers, re-scan from settings, and start fresh watchers. Called
+   * when the user adds or removes a folder so the change takes effect
+   * without an app restart.
+   */
+  async refreshFolders(): Promise<void> {
+    for (const w of this.watchers) { try { await w.close(); } catch { /* noop */ } }
+    this.watchers = [];
+    await this.rescan();
+    this.watch();
+    this.emit('changed');
+  }
+
+  /**
    * Remove tracked "presentations" that were actually Office lock files
    * ingested before the filter landed. Runs once per launch — harmless if
    * the library is already clean.
@@ -246,6 +259,10 @@ export class Library extends EventEmitter {
   private async adoptFile(filePath: string): Promise<void> {
     const stat = fs.statSync(filePath);
     if (stat.size > 500 * 1024 * 1024) return; // skip files > 500MB
+    // Skip 0-byte files — most often these are Dropbox / OneDrive "online-only"
+    // placeholders that haven't materialised on disk yet. We'll pick them up
+    // when they're hydrated and grow past zero bytes (chokidar fires `change`).
+    if (stat.size === 0) return;
     // Have we ever ingested this exact path before?
     for (const p of this.presentations.values()) {
       if (p.watchPath === filePath) {
@@ -292,8 +309,18 @@ export class Library extends EventEmitter {
           return false;
         },
         ignoreInitial: true,
+        // Wait for writes to settle before snapshotting — PowerPoint writes
+        // .pptx in multiple steps, we don't want a half-written intermediate.
         awaitWriteFinish: { stabilityThreshold: 1500, pollInterval: 200 },
         depth: 6,
+        // Poll the filesystem rather than relying purely on native FS events.
+        // Cloud-sync clients (Dropbox, OneDrive, iCloud Drive) often don't
+        // emit FSEvents / inotify when a remote-sourced file arrives, so a
+        // 3-second poll catches "the client just dropped a deck in the
+        // Dropbox folder" reliably across all storage backends.
+        usePolling: true,
+        interval: 3000,
+        binaryInterval: 5000,
       });
       watcher.on('add', (p) => this.onFsAdd(p));
       watcher.on('change', (p) => this.onFsChange(p));

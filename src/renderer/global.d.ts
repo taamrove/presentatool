@@ -20,6 +20,8 @@ interface PresentatoolApi {
   peers(): Promise<Peer[]>;
   settings(): Promise<AppSettings>;
   saveSettings(patch: Partial<AppSettings>): Promise<AppSettings>;
+  addLibraryFolderDialog(): Promise<AppSettings>;
+  removeLibraryFolder(folder: string): Promise<AppSettings>;
 
   pairRemote(): Promise<PairingToken>;
   generateApiToken(): Promise<string>;

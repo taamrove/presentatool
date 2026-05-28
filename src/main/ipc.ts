@@ -60,15 +60,46 @@ export function registerIpc(ctx: IpcContext): void {
   ipcMain.handle('peers:list', () => ctx.discovery.list());
 
   ipcMain.handle('settings:get', () => getSettings());
-  ipcMain.handle('settings:set', (_e, patch: Partial<AppSettings>) => {
-    const prevStatic = JSON.stringify(getSettings().network.staticPeers ?? []);
+  ipcMain.handle('settings:set', async (_e, patch: Partial<AppSettings>) => {
+    const prev = getSettings();
+    const prevStatic = JSON.stringify(prev.network.staticPeers ?? []);
+    const prevFolders = JSON.stringify(prev.libraryPaths ?? []);
     const next = updateSettings(patch);
     const nextStatic = JSON.stringify(next.network.staticPeers ?? []);
-    // Reconnect static peers when the list changes; mDNS reconciliation
-    // already runs on every discovery event, no extra trigger needed.
+    const nextFolders = JSON.stringify(next.libraryPaths ?? []);
     if (prevStatic !== nextStatic) {
       try { ctx.sync.refreshStaticPeers(); } catch (err) { console.warn('[ipc] static peer refresh failed', err); }
     }
+    if (prevFolders !== nextFolders) {
+      try { await ctx.library.refreshFolders(); } catch (err) { console.warn('[ipc] folder refresh failed', err); }
+    }
+    return next;
+  });
+
+  /** Add a watched folder via a directory picker. Returns updated settings. */
+  ipcMain.handle('library:add-folder-dialog', async () => {
+    const res = await dialog.showOpenDialog(ctx.win, {
+      title: 'Add a folder of presentations',
+      properties: ['openDirectory', 'createDirectory'],
+      buttonLabel: 'Watch this folder',
+    });
+    if (res.canceled || res.filePaths.length === 0) return getSettings();
+    const cur = getSettings();
+    const existing = new Set(cur.libraryPaths.map((p) => p.toLowerCase()));
+    const added = res.filePaths.filter((p) => !existing.has(p.toLowerCase()));
+    if (added.length === 0) return cur;
+    const next = updateSettings({ libraryPaths: [...cur.libraryPaths, ...added] });
+    await ctx.library.refreshFolders();
+    return next;
+  });
+
+  /** Remove a watched folder by path. Existing tracked presentations stay
+   *  (their files remain on disk, version history intact) — but new files
+   *  in the folder won't be picked up. */
+  ipcMain.handle('library:remove-folder', async (_e, folderPath: string) => {
+    const cur = getSettings();
+    const next = updateSettings({ libraryPaths: cur.libraryPaths.filter((p) => p !== folderPath) });
+    await ctx.library.refreshFolders();
     return next;
   });
 

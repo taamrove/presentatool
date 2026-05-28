@@ -14,6 +14,8 @@ const api = {
   peers: (): Promise<Peer[]> => ipcRenderer.invoke('peers:list'),
   settings: (): Promise<AppSettings> => ipcRenderer.invoke('settings:get'),
   saveSettings: (patch: Partial<AppSettings>): Promise<AppSettings> => ipcRenderer.invoke('settings:set', patch),
+  addLibraryFolderDialog: (): Promise<AppSettings> => ipcRenderer.invoke('library:add-folder-dialog'),
+  removeLibraryFolder: (folder: string): Promise<AppSettings> => ipcRenderer.invoke('library:remove-folder', folder),
 
   pairRemote: (): Promise<PairingToken> => ipcRenderer.invoke('remote:pair'),
   generateApiToken: (): Promise<string> => ipcRenderer.invoke('remote:generate-api-token'),
