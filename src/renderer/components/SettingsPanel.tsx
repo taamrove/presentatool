@@ -7,25 +7,58 @@ export function SettingsPanel({ settings, onChange }: { settings: AppSettings; o
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [updaterStatus, setUpdaterStatus] = useState<string>('idle');
   const [updaterChecking, setUpdaterChecking] = useState(false);
+  const [updaterPercent, setUpdaterPercent] = useState<number | null>(null);
+  /** Version that's been fully downloaded and is ready to install. */
+  const [updaterReadyVersion, setUpdaterReadyVersion] = useState<string | null>(null);
+  const [updaterError, setUpdaterError] = useState<string | null>(null);
 
   // Subscribe to background updater pings so the UI reflects state changes
   // that didn't originate from the Check button (downloads finishing, etc.).
   useEffect(() => {
-    return window.presentatool.onUpdaterStatus((s) => {
-      setUpdaterStatus(s.version ? `${s.state} → ${s.version}` : s.state);
+    const offStatus = window.presentatool.onUpdaterStatus((s) => {
+      if (s.state === 'error') {
+        setUpdaterError(s.error ?? 'unknown error');
+        setUpdaterStatus('error');
+        setUpdaterPercent(null);
+      } else if (s.state === 'downloading') {
+        setUpdaterStatus(`downloading ${s.version ?? ''}`.trim());
+        setUpdaterError(null);
+      } else if (s.state === 'ready') {
+        setUpdaterStatus(`ready to install → ${s.version}`);
+        setUpdaterReadyVersion(s.version ?? null);
+        setUpdaterPercent(100);
+        setUpdaterError(null);
+      } else if (s.state === 'up-to-date') {
+        setUpdaterStatus('up to date');
+        setUpdaterPercent(null);
+        setUpdaterError(null);
+      } else {
+        setUpdaterStatus(s.version ? `${s.state} → ${s.version}` : s.state);
+      }
     });
+    const offProgress = window.presentatool.onUpdaterProgress((p) => {
+      setUpdaterPercent(Math.round(p.percent));
+    });
+    return () => { offStatus(); offProgress(); };
   }, []);
 
   async function checkForUpdates(): Promise<void> {
     setUpdaterChecking(true);
+    setUpdaterError(null);
     try {
       const res = await window.presentatool.checkForUpdates();
       if (res.state === 'error') {
-        setUpdaterStatus(`error: ${res.error}`);
+        setUpdaterError(res.error ?? 'unknown error');
+        setUpdaterStatus('error');
       } else if (res.state === 'up-to-date') {
         setUpdaterStatus(`up to date (${res.version})`);
+        setUpdaterPercent(null);
       } else if (res.state === 'available') {
+        // electron-updater's autoDownload kicks off immediately; the
+        // 'downloading' / progress / 'ready' status pings will roll in
+        // from the IPC subscriptions above as the bytes flow.
         setUpdaterStatus(`update available → ${res.version} (downloading…)`);
+        setUpdaterPercent(0);
       } else if (res.state === 'checked') {
         setUpdaterStatus(`checked (${res.version})`);
       } else if (res.state === 'dev') {
@@ -36,6 +69,10 @@ export function SettingsPanel({ settings, onChange }: { settings: AppSettings; o
     } finally {
       setUpdaterChecking(false);
     }
+  }
+
+  async function installNow(): Promise<void> {
+    await window.presentatool.applyUpdate();
   }
 
   async function save(): Promise<void> {
@@ -199,14 +236,32 @@ export function SettingsPanel({ settings, onChange }: { settings: AppSettings; o
       <section>
         <h3>Updates</h3>
         <p className="hint">
-          Auto-checks every 5 minutes while open. On Windows, updates download
-          silently and prompt to restart. On macOS (unsigned builds), an
-          "open download page" dialog appears — install requires a signed
-          DMG. Status: <code>{updaterStatus}</code>.
+          Auto-checks every 5 minutes while open. On Windows, downloads run in
+          the background and an installer launches when you click "Restart &
+          install" below. On macOS (unsigned builds), an "open download page"
+          dialog appears instead — install requires a signed DMG.
         </p>
-        <button disabled={updaterChecking} onClick={checkForUpdates}>
-          {updaterChecking ? 'Checking…' : 'Check for updates now'}
-        </button>
+        <p>
+          Status: <code>{updaterStatus}</code>
+          {updaterPercent != null && updaterReadyVersion == null && (
+            <> &nbsp;·&nbsp; <strong>{updaterPercent}%</strong></>
+          )}
+        </p>
+        {updaterError && (
+          <p className="hint" style={{ color: '#ff6b6b' }}>
+            Error: <code>{updaterError}</code>
+          </p>
+        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button disabled={updaterChecking} onClick={checkForUpdates}>
+            {updaterChecking ? 'Checking…' : 'Check for updates now'}
+          </button>
+          {updaterReadyVersion && (
+            <button className="primary" onClick={installNow}>
+              Restart &amp; install {updaterReadyVersion}
+            </button>
+          )}
+        </div>
       </section>
       <div className="actions">
         <button className="primary" disabled={saving} onClick={save}>

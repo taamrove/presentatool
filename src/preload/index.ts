@@ -21,10 +21,16 @@ const api = {
     ipcRenderer.invoke('network:install-firewall-rule'),
   checkForUpdates: (): Promise<{ state: string; version?: string; error?: string }> =>
     ipcRenderer.invoke('updater:check'),
-  onUpdaterStatus: (cb: (status: { state: string; version?: string }) => void) => {
-    const fn = (_: unknown, s: { state: string; version?: string }) => cb(s);
+  applyUpdate: (): Promise<boolean> => ipcRenderer.invoke('updater:apply'),
+  onUpdaterStatus: (cb: (status: { state: string; version?: string; error?: string }) => void) => {
+    const fn = (_: unknown, s: { state: string; version?: string; error?: string }) => cb(s);
     ipcRenderer.on('updater:status', fn);
     return () => ipcRenderer.removeListener('updater:status', fn);
+  },
+  onUpdaterProgress: (cb: (p: { percent: number }) => void) => {
+    const fn = (_: unknown, p: { percent: number }) => cb(p);
+    ipcRenderer.on('updater:progress', fn);
+    return () => ipcRenderer.removeListener('updater:progress', fn);
   },
 
   onSlide: (cb: (info: SlideInfo) => void) => {

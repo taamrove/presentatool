@@ -25,7 +25,9 @@ interface PresentatoolApi {
   generateApiToken(): Promise<string>;
   installFirewallRule(): Promise<{ ok: boolean; reason?: string; status?: string }>;
   checkForUpdates(): Promise<{ state: string; version?: string; error?: string }>;
-  onUpdaterStatus(cb: (s: { state: string; version?: string }) => void): () => void;
+  applyUpdate(): Promise<boolean>;
+  onUpdaterStatus(cb: (s: { state: string; version?: string; error?: string }) => void): () => void;
+  onUpdaterProgress(cb: (p: { percent: number }) => void): () => void;
 
   onSlide(cb: (info: SlideInfo) => void): () => void;
   onQuickSwitch(cb: () => void): () => void;

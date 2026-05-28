@@ -65,6 +65,14 @@ export function startUpdater(win: BrowserWindow | null): void {
   }
 }
 
+/** Trigger the install of an already-downloaded update. Renderer-driven. */
+export function applyDownloadedUpdate(): void {
+  if (!app.isPackaged) return;
+  if (process.platform === 'darwin' && !process.env.PRESENTATOOL_MAC_AUTOUPDATE) return;
+  // isSilent=true, forceRunAfter=true → installer runs hidden, app relaunches.
+  autoUpdater.quitAndInstall(true, true);
+}
+
 /**
  * Fired from the renderer ("Check for updates" button). Runs the platform
  * appropriate path and returns a one-liner status the UI can show.
@@ -139,6 +147,9 @@ function setupAutoUpdater(win: BrowserWindow | null): void {
   });
   autoUpdater.on('error', (err) => {
     console.warn('[updater] error', err);
+    // Surface to the renderer so the Settings panel can show the actual
+    // failure instead of leaving the user staring at "downloading…" forever.
+    win?.webContents.send('updater:status', { state: 'error', error: String(err?.message ?? err) });
   });
 
   // Don't block startup — check on a small delay so the renderer has a moment
