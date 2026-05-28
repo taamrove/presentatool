@@ -9,7 +9,7 @@ export function SettingsPanel({ settings, onChange }: { settings: AppSettings; o
   async function save(): Promise<void> {
     setSaving(true);
     try {
-      const next = await window.presentool.saveSettings(draft);
+      const next = await window.presentatool.saveSettings(draft);
       onChange(next);
       setSavedAt(Date.now());
     } finally {
@@ -97,13 +97,60 @@ export function SettingsPanel({ settings, onChange }: { settings: AppSettings; o
           />
           Auto-sync new presentations from peers
         </label>
+        {/* Windows-only firewall control. Hidden on Mac/Linux. */}
+        {(navigator.platform || '').toLowerCase().includes('win') && (
+          <>
+            <h4>Windows Firewall</h4>
+            <p className="hint">
+              Status: <code>{draft.network.firewallPromptStatus ?? 'not yet asked'}</code>.
+              If your other devices can't see this machine on the LAN, allow Presentatool
+              through Windows Firewall — a one-time UAC prompt that adds an inbound rule
+              for Presentatool.exe on Private + Domain networks.
+            </p>
+            <button onClick={async () => {
+              const res = await window.presentatool.installFirewallRule();
+              if (res.ok && res.status) {
+                setDraft({ ...draft, network: { ...draft.network, firewallPromptStatus: res.status as never } });
+              }
+            }}>Allow through firewall…</button>
+          </>
+        )}
+        <h4>Static peers</h4>
+        <p className="hint">
+          One peer per line as <code>host</code> or <code>host:port</code> (port defaults to 4711).
+          Use this when mDNS isn't reaching a machine — most often because Windows Defender
+          Firewall is dropping inbound multicast, or when peers are on different subnets / VLANs.
+          Entries are tried in addition to whatever mDNS finds.
+        </p>
+        <textarea
+          rows={3}
+          placeholder={'192.168.1.216\nlaptop.lan:4711'}
+          value={(draft.network.staticPeers ?? []).join('\n')}
+          onChange={(e) => setDraft({
+            ...draft,
+            network: {
+              ...draft.network,
+              staticPeers: e.target.value.split('\n').map((s) => s.trim()).filter(Boolean),
+            },
+          })}
+        />
       </section>
       <section>
         <h3>Bitfocus Companion / API token</h3>
         <p className="hint">
-          Paste this token into the Presentool module in Bitfocus Companion to drive slides from a
-          Stream Deck or any Companion-supported controller. Treat it like a password.
+          On the same LAN as the controller (Stream Deck, scripts, etc.) you don't need an API
+          token — Presentatool trusts controller connections from private network addresses by
+          default. Turn that off below if you'd rather require a token everywhere, or generate
+          one for off-LAN / cloud-relay use.
         </p>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={draft.network.trustLanControllers !== false}
+            onChange={(e) => setDraft({ ...draft, network: { ...draft.network, trustLanControllers: e.target.checked } })}
+          />
+          Trust controllers connecting from the LAN (no token required)
+        </label>
         <label>
           API token
           <input
@@ -113,7 +160,7 @@ export function SettingsPanel({ settings, onChange }: { settings: AppSettings; o
           />
         </label>
         <button onClick={async () => {
-          const token = await window.presentool.generateApiToken();
+          const token = await window.presentatool.generateApiToken();
           setDraft({ ...draft, network: { ...draft.network, apiToken: token } });
         }}>Generate new token</button>
       </section>

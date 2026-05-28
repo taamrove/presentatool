@@ -1,4 +1,4 @@
-// Subset of Presentool's wire protocol that the Companion module cares about.
+// Subset of Presentatool's wire protocol that the Companion module cares about.
 // Kept in sync by hand with src/shared/types.ts in the parent project.
 
 export type ClickerCommand =
@@ -28,7 +28,7 @@ export interface PresentationSummary {
 }
 
 export type WireMessage =
-  | { kind: 'hello'; role: 'controller'; token: string }
+  | { kind: 'hello'; role: 'controller'; token?: string }
   | { kind: 'welcome'; peer: { id: string; name: string; platform: string; version: string } }
   | { kind: 'slide'; info: SlideInfo; presentationId?: string }
   | { kind: 'presentations'; list: PresentationSummary[] }
@@ -41,5 +41,6 @@ export type WireMessage =
 export interface ModuleConfig {
   host: string;
   port: number;
-  token: string;
+  /** Optional. Only required when Presentatool is off-LAN or LAN trust is off. */
+  token?: string;
 }

@@ -17,7 +17,7 @@ export function Library({ presentations, selectedId, onSelect, onOpen }: Props):
           Drop your <code>.pptx</code>, <code>.key</code> or <code>.pdf</code> files in your
           Documents folder, or click <strong>+ Add presentations</strong> in the sidebar.
         </p>
-        <p>Presentool will watch the folder and snapshot every change as a new version.</p>
+        <p>Presentatool will watch the folder and snapshot every change as a new version.</p>
       </div>
     );
   }

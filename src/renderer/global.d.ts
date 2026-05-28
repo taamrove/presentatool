@@ -7,7 +7,7 @@ import type {
   SlideInfo,
 } from '../shared/types';
 
-interface PresentoolApi {
+interface PresentatoolApi {
   listPresentations(): Promise<Presentation[]>;
   importDialog(): Promise<Presentation[]>;
   presentationNotes(id: string): Promise<{ title?: string; notes?: string }[]>;
@@ -23,6 +23,7 @@ interface PresentoolApi {
 
   pairRemote(): Promise<PairingToken>;
   generateApiToken(): Promise<string>;
+  installFirewallRule(): Promise<{ ok: boolean; reason?: string; status?: string }>;
 
   onSlide(cb: (info: SlideInfo) => void): () => void;
   onQuickSwitch(cb: () => void): () => void;
@@ -31,7 +32,7 @@ interface PresentoolApi {
 
 declare global {
   interface Window {
-    presentool: PresentoolApi;
+    presentatool: PresentatoolApi;
   }
 }
 

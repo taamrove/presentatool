@@ -20,7 +20,7 @@ test('content hash for identical bytes matches', () => {
 });
 
 test('temp dir creation is idempotent', () => {
-  const dir = path.join(os.tmpdir(), `presentool-${Date.now()}`);
+  const dir = path.join(os.tmpdir(), `presentatool-${Date.now()}`);
   fs.mkdirSync(dir, { recursive: true });
   fs.mkdirSync(dir, { recursive: true }); // should not throw
   fs.rmSync(dir, { recursive: true, force: true });

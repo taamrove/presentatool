@@ -1,10 +1,10 @@
 import type { CompanionVariableDefinition, CompanionVariableValues } from '@companion-module/base';
-import type { PresentoolInstance } from './main';
+import type { PresentatoolInstance } from './main';
 
 export function variableDefinitions(): CompanionVariableDefinition[] {
   return [
-    { variableId: 'connected', name: 'Module connected to Presentool' },
-    { variableId: 'host', name: 'Presentool device name' },
+    { variableId: 'connected', name: 'Module connected to Presentatool' },
+    { variableId: 'host', name: 'Presentatool device name' },
     { variableId: 'slide_index', name: 'Current slide number' },
     { variableId: 'slide_total', name: 'Total slides' },
     { variableId: 'slide_title', name: 'Current slide title' },
@@ -14,7 +14,7 @@ export function variableDefinitions(): CompanionVariableDefinition[] {
   ];
 }
 
-export function variableValues(self: PresentoolInstance): CompanionVariableValues {
+export function variableValues(self: PresentatoolInstance): CompanionVariableValues {
   const s = self.connection.slide;
   const firstPres = self.connection.presentations[0];
   return {

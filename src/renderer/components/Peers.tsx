@@ -6,7 +6,7 @@ export function Peers({ peers }: { peers: Peer[] }): JSX.Element {
     <div className="peers">
       <h2>Peers on the network</h2>
       <p className="hint">
-        Other Presentool installs on the same LAN show up here. When auto-sync is on, new
+        Other Presentatool installs on the same LAN show up here. When auto-sync is on, new
         presentation versions are pulled in automatically.
       </p>
       {peers.length === 0 ? (

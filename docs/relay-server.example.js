@@ -3,7 +3,7 @@
 // desktop has registered for the same peer id. Not production grade -- no
 // auth beyond a shared token, no TLS (terminate that at your reverse proxy).
 //
-// Wire it up in the Presentool desktop's Settings > Network as:
+// Wire it up in the Presentatool desktop's Settings > Network as:
 //   Relay URL:  wss://your.domain/ws
 //   Relay token: <shared secret>
 //

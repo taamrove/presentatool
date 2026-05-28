@@ -8,7 +8,7 @@ source of truth lives in `src/shared/types.ts` as `WireMessage`.
 
 ```
 companion  → drives a single desktop
-peer       → another Presentool install on the LAN (bidirectional)
+peer       → another Presentatool install on the LAN (bidirectional)
 relay      → cloud WebSocket that forwards companion ↔ desktop across networks
 ```
 

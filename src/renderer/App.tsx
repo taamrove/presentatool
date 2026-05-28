@@ -26,34 +26,34 @@ export function App(): JSX.Element {
   );
 
   async function refreshLibrary(): Promise<void> {
-    const list = await window.presentool.listPresentations();
+    const list = await window.presentatool.listPresentations();
     setPresentations(list);
     if (!selectedId && list.length > 0) setSelectedId(list[0].id);
   }
 
   async function refreshPeers(): Promise<void> {
-    setPeers(await window.presentool.peers());
+    setPeers(await window.presentatool.peers());
   }
 
   useEffect(() => {
     refreshLibrary();
     refreshPeers();
-    window.presentool.settings().then(setSettings);
-    const offSlide = window.presentool.onSlide(setSlide);
-    const offQuick = window.presentool.onQuickSwitch(() => setQuickOpen(true));
-    const offPeers = window.presentool.onPeersUpdate(refreshPeers);
+    window.presentatool.settings().then(setSettings);
+    const offSlide = window.presentatool.onSlide(setSlide);
+    const offQuick = window.presentatool.onQuickSwitch(() => setQuickOpen(true));
+    const offPeers = window.presentatool.onPeersUpdate(refreshPeers);
     const t = setInterval(refreshLibrary, 4000);
     return () => { offSlide(); offQuick(); offPeers(); clearInterval(t); };
   }, []);
 
   async function importFiles(): Promise<void> {
-    await window.presentool.importDialog();
+    await window.presentatool.importDialog();
     await refreshLibrary();
   }
 
   async function openPresentation(p: Presentation): Promise<void> {
     setSelectedId(p.id);
-    await window.presentool.open(p.id);
+    await window.presentatool.open(p.id);
     setTab('clicker');
   }
 
@@ -62,7 +62,7 @@ export function App(): JSX.Element {
       <aside className="sidebar">
         <div className="brand">
           <span className="dot" />
-          <span>Presentool</span>
+          <span>Presentatool</span>
         </div>
         <nav>
           <NavButton active={tab === 'library'}    onClick={() => setTab('library')}>Library</NavButton>

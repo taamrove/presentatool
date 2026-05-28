@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, Menu } from 'electron';
+import { app, BrowserWindow, globalShortcut, Menu, dialog } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Library } from './library';
@@ -9,6 +9,8 @@ import { Relay } from './relay';
 import { adapter } from './adapters';
 import { registerIpc } from './ipc';
 import { getSettings } from './settings';
+import { startUpdater } from './updater';
+import { ensureWindowsFirewallException } from './firewall-win';
 import type { ClickerCommand } from '@shared/types';
 
 let win: BrowserWindow | null = null;
@@ -27,9 +29,10 @@ async function bootstrap(): Promise<void> {
   discovery.start(() => library.list().length);
 
   server = new Server({
-    companionDir: app.isPackaged
-      ? path.join(process.resourcesPath, 'companion')
-      : path.join(__dirname, '..', '..', 'dist', 'companion'),
+    // Both packaged and dev: renderer/companion are built under <projectRoot>/dist.
+    // __dirname here is dist/main/main (tsc keeps src/main/ under outDir),
+    // so the companion bundle lives at ../../companion.
+    companionDir: path.join(__dirname, '..', '..', 'companion'),
     onClick: (cmd) => handleClick(cmd),
     onSelect: async (id) => {
       const p = library.get(id);
@@ -88,27 +91,47 @@ function createWindow(): void {
     minWidth: 800,
     minHeight: 500,
     backgroundColor: '#0f1115',
-    title: 'Presentool',
+    title: 'Presentatool',
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'index.js'),
       contextIsolation: true,
       sandbox: false,
     },
   });
-  const devUrl = process.env.PRESENTOOL_DEV_URL;
+  const devUrl = process.env.PRESENTATOOL_DEV_URL;
   if (devUrl) {
     win.loadURL(devUrl);
     win.webContents.openDevTools({ mode: 'detach' });
   } else {
-    win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+    win.loadFile(path.join(__dirname, '..', '..', 'renderer', 'index.html'));
   }
 }
+
+// Only allow one running instance. Without this, double-clicking the icon
+// (or some installer flows) can spawn a second Presentatool process that
+// fights the first for port 4711 and then never fully exits — Task Manager
+// shows nothing because Electron's child processes get grouped under a
+// collapsed entry. Second launches just focus the existing window.
+const gotInstanceLock = app.requestSingleInstanceLock();
+if (!gotInstanceLock) {
+  app.exit(0);
+}
+app.on('second-instance', () => {
+  if (win) {
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  }
+});
 
 app.whenReady().then(async () => {
   await bootstrap();
   createWindow();
-  if (win) registerIpc({ library, server, discovery, win });
+  if (win) registerIpc({ library, server, discovery, sync, win });
   registerHotkeys();
+  startUpdater(win);
+  // Fire and forget — opens a dialog on Windows only, and only on first launch.
+  void ensureWindowsFirewallException();
 
   // Poll the platform adapter for live slide info and broadcast to remotes.
   slideTimer = setInterval(async () => {
@@ -130,13 +153,25 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     cleanup();
     app.quit();
+    // Belt-and-braces force-exit. mDNS sockets, chokidar's fsevents/inotify
+    // helper, and lingering WebSocket peers have all historically kept the
+    // Electron event loop alive after app.quit(), leaving an invisible
+    // Presentatool.exe sitting in Task Manager. If a clean shutdown hasn't
+    // completed in 2s, kill the process ourselves.
+    setTimeout(() => process.exit(0), 2_000).unref();
   }
 });
 
-app.on('will-quit', cleanup);
+app.on('will-quit', () => {
+  cleanup();
+  // Same fallback — guards against `Quit` from the dock / `Cmd+Q` paths and
+  // against an auto-update relaunch where the old process needs to vacate
+  // quickly so the new one can bind port 4711.
+  setTimeout(() => process.exit(0), 2_000).unref();
+});
 
 function cleanup(): void {
-  globalShortcut.unregisterAll();
+  try { globalShortcut.unregisterAll(); } catch {}
   if (slideTimer) clearInterval(slideTimer);
   slideTimer = null;
   try { sync?.stop(); } catch {}
@@ -147,3 +182,18 @@ function cleanup(): void {
 }
 
 Menu.setApplicationMenu(null);
+
+// Keep the app alive on unexpected background errors (e.g. a network port we
+// can't bind, an mDNS hiccup) — log + show a non-fatal dialog instead of the
+// stock Electron crash dialog that quits the process.
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err);
+  try {
+    if (app.isReady()) {
+      dialog.showErrorBox('Presentatool – background error', String(err?.stack ?? err));
+    }
+  } catch {}
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});

@@ -4,6 +4,7 @@ import type { ClickerCommand, AppSettings } from '@shared/types';
 import { Library } from './library';
 import { Server } from './server';
 import { Discovery } from './discovery';
+import { Sync } from './sync';
 import { adapter } from './adapters';
 import { readPptxOutline } from './notes';
 import { getSettings, updateSettings } from './settings';
@@ -12,6 +13,7 @@ export interface IpcContext {
   library: Library;
   server: Server;
   discovery: Discovery;
+  sync: Sync;
   win: BrowserWindow;
 }
 
@@ -57,9 +59,29 @@ export function registerIpc(ctx: IpcContext): void {
   ipcMain.handle('peers:list', () => ctx.discovery.list());
 
   ipcMain.handle('settings:get', () => getSettings());
-  ipcMain.handle('settings:set', (_e, patch: Partial<AppSettings>) => updateSettings(patch));
+  ipcMain.handle('settings:set', (_e, patch: Partial<AppSettings>) => {
+    const prevStatic = JSON.stringify(getSettings().network.staticPeers ?? []);
+    const next = updateSettings(patch);
+    const nextStatic = JSON.stringify(next.network.staticPeers ?? []);
+    // Reconnect static peers when the list changes; mDNS reconciliation
+    // already runs on every discovery event, no extra trigger needed.
+    if (prevStatic !== nextStatic) {
+      try { ctx.sync.refreshStaticPeers(); } catch (err) { console.warn('[ipc] static peer refresh failed', err); }
+    }
+    return next;
+  });
 
   ipcMain.handle('remote:pair', async () => ctx.server.createPairingToken());
+
+  ipcMain.handle('network:install-firewall-rule', async () => {
+    if (process.platform !== 'win32') return { ok: false, reason: 'not-windows' };
+    // Reset the gate so ensureWindowsFirewallException will actually run.
+    const cur = getSettings();
+    updateSettings({ network: { ...cur.network, firewallPromptStatus: 'pending' } });
+    const { ensureWindowsFirewallException } = await import('./firewall-win');
+    await ensureWindowsFirewallException();
+    return { ok: true, status: getSettings().network.firewallPromptStatus };
+  });
 
   ipcMain.handle('remote:generate-api-token', async () => {
     const apiToken = crypto.randomBytes(24).toString('base64url');

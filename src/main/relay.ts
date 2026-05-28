@@ -1,4 +1,5 @@
 import { WebSocket } from 'ws';
+import { app } from 'electron';
 import type { WireMessage, ClickerCommand } from '@shared/types';
 import { getSettings, getPeerId } from './settings';
 
@@ -51,7 +52,7 @@ export class Relay {
           host: '',
           port: network.port,
           platform: process.platform as any,
-          version: '0.1.0',
+          version: app.getVersion(),
           presentationCount: 0,
         },
       };

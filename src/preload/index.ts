@@ -17,6 +17,8 @@ const api = {
 
   pairRemote: (): Promise<PairingToken> => ipcRenderer.invoke('remote:pair'),
   generateApiToken: (): Promise<string> => ipcRenderer.invoke('remote:generate-api-token'),
+  installFirewallRule: (): Promise<{ ok: boolean; reason?: string; status?: string }> =>
+    ipcRenderer.invoke('network:install-firewall-rule'),
 
   onSlide: (cb: (info: SlideInfo) => void) => {
     const fn = (_: unknown, info: SlideInfo) => cb(info);
@@ -35,9 +37,9 @@ const api = {
   },
 };
 
-contextBridge.exposeInMainWorld('presentool', api);
+contextBridge.exposeInMainWorld('presentatool', api);
 
-export type PresentoolApi = typeof api;
+export type PresentatoolApi = typeof api;
 declare global {
-  interface Window { presentool: PresentoolApi }
+  interface Window { presentatool: PresentatoolApi }
 }

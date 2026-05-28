@@ -49,6 +49,8 @@ function defaultSettings(): AppSettings {
       port: 4711,
       enableMdns: true,
       enableRelay: false,
+      trustLanControllers: true,
+      staticPeers: [],
     },
     autoSync: true,
   };

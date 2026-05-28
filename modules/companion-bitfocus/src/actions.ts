@@ -1,7 +1,7 @@
 import type { CompanionActionDefinitions } from '@companion-module/base';
-import type { PresentoolInstance } from './main';
+import type { PresentatoolInstance } from './main';
 
-export function buildActions(self: PresentoolInstance): CompanionActionDefinitions {
+export function buildActions(self: PresentatoolInstance): CompanionActionDefinitions {
   const presentationChoices = self.connection.presentations.map((p) => ({ id: p.id, label: p.title }));
 
   return {

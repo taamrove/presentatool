@@ -110,6 +110,26 @@ export interface AppSettings {
     relayUrl?: string;          // wss://... when user wires up a domain
     relayToken?: string;
     apiToken?: string;          // long-lived token for Bitfocus Companion etc.
+    /**
+     * If true (default), Bitfocus Companion / API controllers reaching us
+     * from a private LAN address (RFC1918, loopback, link-local) are accepted
+     * without an API token. Off-LAN / relay clients always need a token.
+     */
+    trustLanControllers?: boolean;
+    /**
+     * Fallback for environments where mDNS doesn't work end-to-end (Windows
+     * Defender Firewall, AP client isolation, multi-subnet setups): a list
+     * of peer endpoints to keep open in addition to anything mDNS finds.
+     * Each entry is a host or host:port — port defaults to 4711.
+     */
+    staticPeers?: string[];
+    /**
+     * Windows-only. Tracks the Defender Firewall self-install flow so we
+     * only ever ask once. `added` = rule installed; `declined` = user said
+     * no; `failed` = elevation/UAC denied. Undefined / `pending` means we
+     * may prompt on next launch.
+     */
+    firewallPromptStatus?: 'pending' | 'added' | 'declined' | 'failed';
   };
   autoSync: boolean;
 }

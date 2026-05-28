@@ -1,6 +1,7 @@
 import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
+import { app } from 'electron';
 import * as crypto from 'crypto';
 import { WebSocketServer, WebSocket } from 'ws';
 import { EventEmitter } from 'events';
@@ -35,14 +36,44 @@ export class Server extends EventEmitter {
 
   constructor(private opts: ServerOptions) { super(); }
 
+  /** Port we actually ended up bound to (may differ from settings if there was a conflict). */
+  boundPort: number | null = null;
+
   start(): void {
     const settings = getSettings();
     this.http = http.createServer((req, res) => this.handleHttp(req, res));
     this.wss = new WebSocketServer({ server: this.http, path: '/ws' });
     this.wss.on('connection', (ws, req) => this.handleSocket(ws, req));
-    this.http.listen(settings.network.port, () => {
-      console.log(`[server] listening on :${settings.network.port}`);
-    });
+
+    // If the configured port is in use, fall back to an OS-assigned ephemeral
+    // port rather than crashing the whole app (EADDRINUSE used to bubble up
+    // as an uncaught exception and kill the main process on Windows).
+    const tryListen = (port: number, attempt = 0): void => {
+      const onError = (err: NodeJS.ErrnoException) => {
+        if (err.code === 'EADDRINUSE' && attempt < 1) {
+          console.warn(`[server] port ${port} in use, falling back to an ephemeral port`);
+          this.http?.removeListener('error', onError);
+          // Re-create the server: a failed-to-bind http.Server can't be re-listened reliably.
+          this.http?.close();
+          this.http = http.createServer((req, res) => this.handleHttp(req, res));
+          this.wss = new WebSocketServer({ server: this.http, path: '/ws' });
+          this.wss.on('connection', (ws, req) => this.handleSocket(ws, req));
+          tryListen(0, attempt + 1);
+          return;
+        }
+        console.error('[server] failed to start', err);
+        this.emit('listen-error', err);
+      };
+      this.http!.once('error', onError);
+      this.http!.listen(port, () => {
+        const addr = this.http!.address();
+        this.boundPort = typeof addr === 'object' && addr ? addr.port : port;
+        console.log(`[server] listening on :${this.boundPort}`);
+        this.http!.removeListener('error', onError);
+        this.emit('listening', this.boundPort);
+      });
+    };
+    tryListen(settings.network.port);
   }
 
   stop(): void {
@@ -73,7 +104,7 @@ export class Server extends EventEmitter {
     this.tokens.set(token, expiresAt);
     const addrs = localAddresses();
     const host = addrs[0] ?? '127.0.0.1';
-    const port = getSettings().network.port;
+    const port = this.boundPort ?? getSettings().network.port;
     const url = `http://${host}:${port}/?token=${token}`;
     const qrDataUrl = await QRCode.toDataURL(url, { margin: 1, width: 320 });
     return { token, expiresAt, url, qrDataUrl };
@@ -92,7 +123,7 @@ export class Server extends EventEmitter {
           host: '',
           port: getSettings().network.port,
           platform: process.platform as any,
-          version: '0.1.0',
+          version: app.getVersion(),
           presentationCount: this.opts.presentationsForRemote().length,
         },
       };
@@ -126,8 +157,11 @@ export class Server extends EventEmitter {
 
   // ----------------- WS -----------------
 
-  private handleSocket(ws: WebSocket, _req: http.IncomingMessage): void {
+  private handleSocket(ws: WebSocket, req: http.IncomingMessage): void {
     let role: 'companion' | 'peer' | null = null;
+    // Stash the remote address so the hello handler can decide whether the
+    // client is on the local LAN (trusted) or coming from outside (needs token).
+    (ws as any).__remoteAddr = req.socket.remoteAddress ?? '';
     ws.on('message', (raw) => this.handleMessage(ws, raw, (r) => { role = r; }));
     ws.on('close', () => { this.remotes.delete(ws); void role; });
   }
@@ -138,10 +172,19 @@ export class Server extends EventEmitter {
     switch (msg.kind) {
       case 'hello': {
         if (msg.role === 'companion' || msg.role === 'controller') {
-          const apiToken = getSettings().network.apiToken;
+          const settings = getSettings();
+          const apiToken = settings.network.apiToken;
+          const trustLan = settings.network.trustLanControllers !== false; // default true
+          const remoteAddr = (ws as any).__remoteAddr as string | undefined;
           const isApi = msg.role === 'controller' && !!apiToken && msg.token === apiToken;
           const isPair = !!msg.token && this.tokens.has(msg.token!) && (this.tokens.get(msg.token!)! > Date.now());
-          if (!isApi && !isPair) { trySend(ws, { kind: 'error', message: 'invalid or expired token' }); ws.close(); return; }
+          // A controller (Bitfocus Companion, scripts, etc.) reaching us from
+          // a private LAN address gets in without auth — this is the common
+          // "Stream Deck + a handful of presenter laptops on the same network"
+          // setup where requiring a per-machine API token is just friction.
+          // Phone remotes (`role: 'companion'`) still need a paired token.
+          const isTrustedLan = msg.role === 'controller' && trustLan && isPrivateAddress(remoteAddr);
+          if (!isApi && !isPair && !isTrustedLan) { trySend(ws, { kind: 'error', message: 'invalid or expired token' }); ws.close(); return; }
           if (isPair) this.tokens.delete(msg.token!);
           setRole?.(msg.role === 'controller' ? 'companion' : msg.role);
           this.remotes.add(ws);
@@ -153,7 +196,7 @@ export class Server extends EventEmitter {
               host: '',
               port: getSettings().network.port,
               platform: process.platform as any,
-              version: '0.1.0',
+              version: app.getVersion(),
               presentationCount: this.opts.presentationsForRemote().length,
             },
           };
@@ -230,6 +273,38 @@ export class Server extends EventEmitter {
 export function trySend(ws: WebSocket, msg: WireMessage): void {
   if (ws.readyState !== ws.OPEN) return;
   try { ws.send(JSON.stringify(msg)); } catch {}
+}
+
+/**
+ * True for addresses we treat as "the LAN" — loopback, link-local, and the
+ * RFC1918 private IPv4 ranges, plus IPv6 loopback / link-local / unique-local
+ * ranges. Anything else (public IPs, relay-tunneled clients) requires an API
+ * token. IPv4-mapped IPv6 (`::ffff:10.0.0.1`) is unwrapped and re-checked.
+ */
+function isPrivateAddress(addr: string | undefined): boolean {
+  if (!addr) return false;
+  let a = addr.toLowerCase();
+  // Strip IPv6 zone identifier (`fe80::1%en0`)
+  const pct = a.indexOf('%');
+  if (pct >= 0) a = a.slice(0, pct);
+  // IPv4-mapped IPv6
+  if (a.startsWith('::ffff:')) a = a.slice(7);
+  // IPv4
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(a)) {
+    const [o1, o2] = a.split('.').map((n) => parseInt(n, 10));
+    if (o1 === 127) return true;                        // 127.0.0.0/8 loopback
+    if (o1 === 10) return true;                         // 10.0.0.0/8
+    if (o1 === 192 && o2 === 168) return true;          // 192.168.0.0/16
+    if (o1 === 172 && o2 >= 16 && o2 <= 31) return true; // 172.16.0.0/12
+    if (o1 === 169 && o2 === 254) return true;          // 169.254.0.0/16 link-local
+    return false;
+  }
+  // IPv6
+  if (a === '::1') return true;                         // loopback
+  if (a.startsWith('fe80:')) return true;               // link-local
+  // Unique local addresses fc00::/7  (fc00–fdff)
+  if (/^f[cd][0-9a-f]{2}:/.test(a)) return true;
+  return false;
 }
 
 function contentType(file: string): string {

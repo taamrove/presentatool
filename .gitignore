@@ -6,3 +6,7 @@ release/
 .env
 .env.local
 .vite/
+# Companion module build outputs
+modules/companion-bitfocus/pkg/
+modules/companion-bitfocus/dist/
+modules/companion-bitfocus/*.tgz

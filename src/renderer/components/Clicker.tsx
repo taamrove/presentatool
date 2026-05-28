@@ -21,8 +21,8 @@ export function Clicker({ presentation, slide }: Props): JSX.Element {
     return () => document.removeEventListener('keydown', onKey);
   }, []);
 
-  function click(cmd: Parameters<typeof window.presentool.click>[0]): void {
-    window.presentool.click(cmd);
+  function click(cmd: Parameters<typeof window.presentatool.click>[0]): void {
+    window.presentatool.click(cmd);
   }
 
   return (

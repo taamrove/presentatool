@@ -1,12 +1,12 @@
 import { combineRgb, type CompanionFeedbackDefinitions } from '@companion-module/base';
-import type { PresentoolInstance } from './main';
+import type { PresentatoolInstance } from './main';
 
-export function buildFeedbacks(self: PresentoolInstance): CompanionFeedbackDefinitions {
+export function buildFeedbacks(self: PresentatoolInstance): CompanionFeedbackDefinitions {
   return {
     connected: {
       type: 'boolean',
-      name: 'Connected to Presentool',
-      description: 'True while the module is connected to the Presentool desktop',
+      name: 'Connected to Presentatool',
+      description: 'True while the module is connected to the Presentatool desktop',
       defaultStyle: {
         bgcolor: combineRgb(0, 128, 0),
         color: combineRgb(255, 255, 255),

@@ -1,13 +1,13 @@
 {
-  "id": "presentool",
-  "name": "presentool",
-  "shortname": "Presentool",
-  "description": "Control Presentool presentations (PowerPoint / Keynote / PDF) from Bitfocus Companion. Provides next/prev/blank/exit, presentation switching, and live slide/notes variables.",
-  "version": "0.1.0",
+  "id": "presentatool",
+  "name": "presentatool",
+  "shortname": "Presentatool",
+  "description": "Control Presentatool presentations (PowerPoint / Keynote / PDF) from Bitfocus Companion. Provides next/prev/blank/exit, presentation switching, and live slide/notes variables.",
+  "version": "0.1.8",
   "license": "MIT",
   "repository": "https://github.com/taamrove/presentool",
-  "products": ["Presentool"],
-  "bugUrl": "https://github.com/taamrove/presentool/issues",
+  "products": ["Presentatool"],
+  "bugs": "https://github.com/taamrove/presentool/issues",
   "maintainers": [
     {
       "name": "taamrove",
@@ -20,6 +20,7 @@
     "apiVersion": "0.0.0",
     "entrypoint": "dist/main.js"
   },
-  "manufacturer": "taamrove",
-  "keywords": ["presentation", "powerpoint", "keynote", "pdf", "clicker", "slideshow"]
+  "manufacturer": "Presentatool",
+  "keywords": ["presentation", "powerpoint", "keynote", "pdf", "clicker", "slideshow"],
+  "legacyIds": ["presentool"]
 }

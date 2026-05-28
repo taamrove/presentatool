@@ -8,7 +8,7 @@ import { variableDefinitions, variableValues } from './variables';
 import { buildFeedbacks } from './feedbacks';
 import { buildPresets } from './presets';
 
-export class PresentoolInstance extends InstanceBase<ModuleConfig> {
+export class PresentatoolInstance extends InstanceBase<ModuleConfig> {
   config!: ModuleConfig;
   connection!: Connection;
 
@@ -58,4 +58,4 @@ export class PresentoolInstance extends InstanceBase<ModuleConfig> {
   }
 }
 
-runEntrypoint(PresentoolInstance, []);
+runEntrypoint(PresentatoolInstance, []);

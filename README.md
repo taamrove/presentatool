@@ -1,4 +1,4 @@
-# Presentool
+# Presentatool
 
 Cross-platform presentation manager for Windows, Linux and macOS. One place to
 keep every `.pptx` / `.key` / `.pdf` you present from, advance slides from your
@@ -18,7 +18,7 @@ sync everything between the machines on your network.
 | Discovery between connected computers | ✅ | mDNS / Bonjour with peer txt records. |
 | Presenter notes + current/next slide | ✅ | Native scripting on Windows (PowerPoint COM) and macOS (Keynote/PowerPoint AppleScript). PPTX notes also parsed from the file as a fallback. |
 | Optional cloud relay (remote across networks) | ✅ | Point at any WebSocket relay URL in Settings → Network. |
-| Bitfocus Companion module | ✅ | Drive Presentool from a Stream Deck. See [`modules/companion-bitfocus`](modules/companion-bitfocus/). |
+| Bitfocus Companion module | ✅ | Drive Presentatool from a Stream Deck. See [`modules/companion-bitfocus`](modules/companion-bitfocus/). |
 
 ## Modules
 
@@ -26,7 +26,7 @@ There are four top-level modules:
 
 1. **Desktop app** (`src/main` + `src/renderer`) — the Electron app the speaker runs.
 2. **Phone web remote** (`src/companion`) — a touch UI served by the desktop, paired via QR.
-3. **Bitfocus Companion module** (`modules/companion-bitfocus`) — Node module that lets [Bitfocus Companion](https://bitfocus.io/companion) drive Presentool from a Stream Deck or other control surface.
+3. **Bitfocus Companion module** (`modules/companion-bitfocus`) — Node module that lets [Bitfocus Companion](https://bitfocus.io/companion) drive Presentatool from a Stream Deck or other control surface.
 4. **Discovery + sync + versioning** (`src/main/discovery.ts`, `src/main/sync.ts`, `src/main/library.ts`) — mDNS peer discovery, chunked WebSocket sync of presentation versions, and file-watcher-driven snapshotting.
 
 Each module talks to the others through the shared types in `src/shared/types.ts`.
@@ -60,7 +60,7 @@ remotes that connect to that URL will drive this desktop.
 
 ## How versioning works
 
-When you point Presentool at a folder, every recognised presentation is copied
+When you point Presentatool at a folder, every recognised presentation is copied
 once into `<userData>/library/<id>/versions/<sha>.<ext>`. Each subsequent
 change to the source file (detected by chokidar) becomes a new immutable
 version. The current copy is mirrored to `current.<ext>` so the platform
@@ -70,7 +70,7 @@ history with origin (local / synced from peer X / imported).
 ## How sync works
 
 * Each install picks a stable peer-id (stored in `<userData>/peer-id`).
-* The desktop advertises `_presentool._tcp` over mDNS with name, port and presentation count.
+* The desktop advertises `_presentatool._tcp` over mDNS with name, port and presentation count.
 * When a new peer is discovered, the local desktop opens a WebSocket to it and exchanges `sync-offer` messages listing every (presentationId, versionId) it has.
 * Anything the other side is missing is requested with `sync-request` and streamed back in 256 KB base64 chunks.
 

@@ -1,8 +1,8 @@
 {
-  "name": "presentool",
-  "version": "0.1.0",
+  "name": "presentatool",
+  "version": "0.1.8",
   "description": "Cross-platform presentation manager with remote clicker, LAN sync, and versioning",
-  "main": "dist/main/index.js",
+  "main": "dist/main/main/index.js",
   "author": "taamrove",
   "license": "MIT",
   "scripts": {
@@ -19,6 +19,8 @@
     "package:win": "npm run build && electron-builder --win",
     "package:linux": "npm run build && electron-builder --linux",
     "package:mac": "npm run build && electron-builder --mac",
+    "release": "npm run build && electron-builder --mac --win --publish always",
+    "release:draft": "npm run build && electron-builder --mac --win --publish always -c.releaseType=draft",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
     "test": "node --test --experimental-strip-types src/**/*.test.ts"
@@ -26,8 +28,10 @@
   "dependencies": {
     "bonjour-service": "^1.2.1",
     "chokidar": "^3.6.0",
+    "electron-updater": "^6.8.3",
     "jszip": "^3.10.1",
     "qrcode": "^1.5.4",
+    "semver": "^7.8.1",
     "ws": "^8.16.0",
     "xml2js": "^0.6.2"
   },
@@ -36,6 +40,7 @@
     "@types/qrcode": "^1.5.5",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@types/semver": "^7.7.1",
     "@types/ws": "^8.5.10",
     "@types/xml2js": "^0.4.14",
     "@vitejs/plugin-react": "^4.2.1",
@@ -49,8 +54,8 @@
     "vite": "^5.1.0"
   },
   "build": {
-    "appId": "as.trv.presentool",
-    "productName": "Presentool",
+    "appId": "as.trv.presentatool",
+    "productName": "Presentatool",
     "files": [
       "dist/**/*",
       "resources/**/*",
@@ -60,15 +65,28 @@
       "output": "release"
     },
     "win": {
-      "target": ["nsis"]
+      "target": [
+        "nsis"
+      ]
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Office"
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "category": "public.app-category.productivity"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "taamrove",
+      "repo": "presentatool"
     }
   }
 }

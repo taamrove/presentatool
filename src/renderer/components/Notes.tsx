@@ -12,7 +12,7 @@ export function Notes({ presentation, slide }: Props): JSX.Element {
   useEffect(() => {
     let cancelled = false;
     if (presentation.kind === 'pptx') {
-      window.presentool.presentationNotes(presentation.id).then((o) => {
+      window.presentatool.presentationNotes(presentation.id).then((o) => {
         if (!cancelled) setOutline(o);
       });
     } else {

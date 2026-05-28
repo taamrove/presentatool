@@ -8,7 +8,7 @@ export function RemotePair(): JSX.Element {
   async function generate(): Promise<void> {
     setLoading(true);
     try {
-      const token = await window.presentool.pairRemote();
+      const token = await window.presentatool.pairRemote();
       setPair(token);
     } finally {
       setLoading(false);
@@ -20,7 +20,7 @@ export function RemotePair(): JSX.Element {
       <h2>Pair a remote clicker</h2>
       <p className="hint">
         Generate a one-time link, then scan the QR code with a phone on the same Wi-Fi network.
-        The phone will open the Presentool companion page and become a remote.
+        The phone will open the Presentatool companion page and become a remote.
       </p>
       {!pair ? (
         <button className="primary" disabled={loading} onClick={generate}>

@@ -1,15 +1,16 @@
 import Bonjour from 'bonjour-service';
 import { EventEmitter } from 'events';
 import * as os from 'os';
+import { app } from 'electron';
 import type { Peer, Platform } from '@shared/types';
 import { getSettings, getPeerId } from './settings';
 
 type Service = ReturnType<InstanceType<typeof Bonjour>['publish']>;
 
-const SERVICE_TYPE = 'presentool';
+const SERVICE_TYPE = 'presentatool';
 
 /**
- * mDNS-based peer discovery. Each Presentool advertises itself on the LAN
+ * mDNS-based peer discovery. Each Presentatool advertises itself on the LAN
  * with its peer id, name, port and presentation count. Subscribers can
  * watch the peer list update live.
  */
@@ -33,7 +34,7 @@ export class Discovery extends EventEmitter {
         id: peerId,
         name: settings.deviceName,
         platform: process.platform,
-        version: '0.1.0',
+        version: app.getVersion(),
         count: String(this.getPresCount()),
       },
     });
@@ -68,7 +69,7 @@ export class Discovery extends EventEmitter {
         id: peerId,
         name: settings.deviceName,
         platform: process.platform,
-        version: '0.1.0',
+        version: app.getVersion(),
         count: String(this.getPresCount()),
       },
     });
