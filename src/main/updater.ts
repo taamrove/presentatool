@@ -68,18 +68,28 @@ export function startUpdater(win: BrowserWindow | null): void {
 /**
  * Fired from the renderer ("Check for updates" button). Runs the platform
  * appropriate path and returns a one-liner status the UI can show.
+ *
+ * Subtle gotcha worth knowing: `autoUpdater.checkForUpdates()` always
+ * returns an `updateInfo` object describing the *latest version on the
+ * feed*, regardless of whether it's newer than what's running. So we
+ * have to compare against `app.getVersion()` ourselves with semver to
+ * tell "update available" from "already on the latest".
  */
 export async function checkNow(): Promise<{ state: string; version?: string; error?: string }> {
   if (!app.isPackaged) return { state: 'dev', error: 'auto-update is disabled in dev builds' };
   const isMacManual = process.platform === 'darwin' && !process.env.PRESENTATOOL_MAC_AUTOUPDATE;
+  const current = app.getVersion();
   try {
     if (isMacManual) {
       await checkManually(activeWin);
-      return { state: 'checked' };
+      return { state: 'checked', version: current };
     }
     const r = await autoUpdater.checkForUpdates();
-    if (r?.updateInfo) return { state: 'available', version: r.updateInfo.version };
-    return { state: 'up-to-date' };
+    const latest = r?.updateInfo?.version;
+    if (latest && semver.valid(latest) && semver.gt(latest, current)) {
+      return { state: 'available', version: latest };
+    }
+    return { state: 'up-to-date', version: current };
   } catch (err) {
     return { state: 'error', error: String((err as Error)?.message ?? err) };
   }

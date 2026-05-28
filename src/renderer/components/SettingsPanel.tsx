@@ -20,9 +20,19 @@ export function SettingsPanel({ settings, onChange }: { settings: AppSettings; o
     setUpdaterChecking(true);
     try {
       const res = await window.presentatool.checkForUpdates();
-      if (res.state === 'error') setUpdaterStatus(`error: ${res.error}`);
-      else if (res.version) setUpdaterStatus(`${res.state} → ${res.version}`);
-      else setUpdaterStatus(res.state);
+      if (res.state === 'error') {
+        setUpdaterStatus(`error: ${res.error}`);
+      } else if (res.state === 'up-to-date') {
+        setUpdaterStatus(`up to date (${res.version})`);
+      } else if (res.state === 'available') {
+        setUpdaterStatus(`update available → ${res.version} (downloading…)`);
+      } else if (res.state === 'checked') {
+        setUpdaterStatus(`checked (${res.version})`);
+      } else if (res.state === 'dev') {
+        setUpdaterStatus('dev build — auto-update disabled');
+      } else {
+        setUpdaterStatus(res.state);
+      }
     } finally {
       setUpdaterChecking(false);
     }
