@@ -1,6 +1,6 @@
 {
   "name": "presentatool",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Cross-platform presentation manager with remote clicker, LAN sync, and versioning",
   "main": "dist/main/main/index.js",
   "author": "taamrove",
@@ -68,6 +68,9 @@
       "target": [
         "nsis"
       ]
+    },
+    "nsis": {
+      "include": "build/installer.nsh"
     },
     "linux": {
       "target": [

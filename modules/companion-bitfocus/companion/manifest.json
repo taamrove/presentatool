@@ -3,7 +3,7 @@
   "name": "presentatool",
   "shortname": "Presentatool",
   "description": "Control Presentatool presentations (PowerPoint / Keynote / PDF) from Bitfocus Companion. Provides next/prev/blank/exit, presentation switching, and live slide/notes variables.",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "license": "MIT",
   "repository": "https://github.com/taamrove/presentool",
   "products": ["Presentatool"],

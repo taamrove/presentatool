@@ -158,7 +158,11 @@ app.on('window-all-closed', () => {
     // Electron event loop alive after app.quit(), leaving an invisible
     // Presentatool.exe sitting in Task Manager. If a clean shutdown hasn't
     // completed in 2s, kill the process ourselves.
-    setTimeout(() => process.exit(0), 2_000).unref();
+    // 800ms is short enough to beat electron-updater's ~1s wait before
+    // launching the NSIS installer — otherwise the installer hits a file
+    // lock on Presentatool.exe and pops "Cannot be closed, please close
+    // it manually and click Retry."
+    setTimeout(() => process.exit(0), 800).unref();
   }
 });
 
